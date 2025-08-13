@@ -1,0 +1,76 @@
+- hosts: ubuntu_instances
+  vars:
+    ubuntu_instance: true
+  vars_files:
+    - packages.yml
+  become: yes
+  tasks: 
+  - name: Install apache server and update ubuntu
+    ansible.builtin.apt:
+      name: apache2
+      state: latest
+      update_cache: yes
+
+  - name: Start apache service, if not started and make it permanent
+    ansible.builtin.service:
+      name: apache2
+      state: started
+      enabled: yes 
+
+  - name: Install other packages needed for wordpress
+    ansible.builtin.apt:
+      name: "{{ packages.wordpress_packages }}"
+      state: latest
+
+  - name: Download latest WordPress files
+    ansible.builtin.get_url:
+      url: "https://wordpress.org/latest.tar.gz"
+      dest: "/tmp/latest.tar.gz"
+  
+  - name: Extract WordPress from archive and give needed permissions and ownership
+    ansible.builtin.unarchive:
+      src: "/tmp/latest.tar.gz"
+      dest: "/tmp/"
+      remote_src: yes
+
+  - name: Check if wordpress files already in folder
+    ansible.builtin.stat:
+      path: /var/www/html/wp-settings.php
+    register: does_wordpress
+
+  # Only continue if there are no pre-installed wordpress files in a folder  
+  - block:
+    - name: Copy from WordPress folder to /var/www/html/
+      ansible.builtin.copy:
+        src: /tmp/wordpress/
+        dest: /var/www/html/
+        remote_src: yes
+
+    - name: Change ownership and permissions of all files in a folder with wordpress
+      ansible.builtin.file:
+        path: /var/www/html
+        owner: www-data
+        group: www-data
+        mode: "0755"
+        recurse: yes
+
+    - name: Remove file index.html - because "There can be only one!"© 
+      ansible.builtin.file:
+        path: /var/www/html/index.html
+        state: absent
+
+    - name: Delete wordpress tmp folder
+      ansible.builtin.file:
+        path: /tmp/wordpress/
+        state: absent
+    
+    - name: Delete wordpress archive file
+      ansible.builtin.file:
+        path: /tmp/latest.tar.gz
+        state: absent
+    when: does_wordpress.stat.exists == false
+
+  - name: Restart Apache service
+    ansible.builtin.service:
+      name: apache2
+      state: restarted

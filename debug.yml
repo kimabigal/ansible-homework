@@ -1,0 +1,10 @@
+- hosts: vm1
+  become: yes
+  tasks:
+  - name: Install wordpress
+    ansible.builtin.apt:
+      name: wordpress
+    register: kaizen
+
+  - name: Debug #"show me more messages to get more context"
+    debug: msg="{{ kaizen }}"
