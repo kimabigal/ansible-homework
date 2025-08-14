@@ -1,4 +1,0 @@
-- name: Download foo.conf
-  ansible.builtin.get_url:
-    url: https://wordpress.org/latest.tar.gz
-    dest: /tmp
